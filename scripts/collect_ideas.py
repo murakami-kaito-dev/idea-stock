@@ -61,7 +61,17 @@ def search(query: str) -> str:
     )
     with urllib.request.urlopen(req, timeout=60) as res:
         data = json.loads(res.read())
-    return data["choices"][0]["message"]["content"]
+
+    content = data["choices"][0]["message"]["content"]
+    
+    # citationsを取り出してURLリストを追記
+    citations = data.get("citations", [])
+    if citations:
+        content += "\n\n**参考リンク**\n"
+        for i, url in enumerate(citations, 1):
+            content += f"- [{i}] {url}\n"
+    
+    return content
 
 
 def main():
