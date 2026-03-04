@@ -10,27 +10,28 @@ JST = timezone(timedelta(hours=9))
 now = datetime.now(JST)
 date_str = now.strftime("%Y-%m-%d")
 timestamp = now.strftime("%Y-%m-%d %H:%M JST")
+yesterday = (now - timedelta(days=1)).strftime("%Y年%m月%d日")
 
 TOPICS = [
     (
         "📱 モバイルアプリ開発",
-        "今日から1週間以内のFlutter, iOS, App Store審査, インディー開発者向けの最新ニュースやトレンドを調査して、日本語で教えてください。"
+        "昨日（{yesterday}）に配信・公開されたFlutter, iOS, App Store, インディー開発者に関するニュースやトレンドを教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
     ),
     (
         "🎨 UI/UX",
-        "今日から1週間以内のモバイルアプリのUI/UXデザイン、WebアプリのUI/UXデザイン、デザインシステム、ユーザー体験に関する最新トレンドや事例を調査して、日本語で教えてください。"
+        "昨日（{yesterday}）に配信・公開されたモバイル・WebアプリのUI/UXデザイン、デザインシステム、ユーザー体験に関するニュースや事例を教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
     ),
     (
         "📈 マーケティング",
-        "今日から1週間以内のアプリマーケティング、ASO（アプリストア最適化）、個人開発者のグロース戦略に関する最新情報を調査して、日本語で教えてください。"
+        "昨日（{yesterday}）に配信・公開されたアプリマーケティング、ASO、個人開発者のグロース戦略に関するニュースを教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
     ),
     (
         "🤖 AI",
-        "今日から1週間以内の生成AI・LLM・個人開発者が使えるAIツールに関する最新ニュースやリリース情報を調査して、日本語で教えてください。"
+        "昨日（{yesterday}）に配信・公開された生成AI・LLM・個人開発者が使えるAIツールに関するニュースやリリース情報を教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
     ),
     (
         "💰 マネタイズ",
-        "今日から1週間以内の個人開発アプリのマネタイズ事例、サブスク設計、フリーミアム戦略、価格設定に関する最新情報を調査して、日本語で教えてください。"
+        "昨日（{yesterday}）に配信・公開された個人開発アプリのマネタイズ事例、サブスク設計、フリーミアム戦略、価格設定に関するニュースを教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
     ),
 ]
 
@@ -114,7 +115,7 @@ def main():
 
     for category, query in TOPICS:
         print(f"Fetching: {category}")
-        content = search(query, previous_content)
+        content = search(query.format(yesterday=yesterday), previous_content)
         sections.append(f"## {category}\n\n{content}\n")
 
     memo = f"""# 📚 アイデアストック — {date_str}
