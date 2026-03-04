@@ -2,6 +2,8 @@ name: Daily Idea Stock
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened]
 
 jobs:
   collect:
