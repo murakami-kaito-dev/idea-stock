@@ -30,13 +30,41 @@ TOPICS = [
     ),
     (
         "💰 マネタイズ",
-        "今日から1か月以内の個人開発アプリのマネタイズ事例、サブスク設計、"
-        "フリーミアム戦略、価格設定、マーケティング戦略に関する最新情報を調査して、日本語で教えてください。"
+        "今日から1週間以内の個人開発アプリのマネタイズ事例、サブスク設計、フリーミアム戦略、価格設定に関する最新情報を調査して、日本語で教えてください。"
     ),
 ]
 
 
-def search(query: str) -> str:
+def get_previous_memo() -> str:
+    """直近のメモファイルを取得する"""
+    memo_dir = "memos"
+    if not os.path.exists(memo_dir):
+        return ""
+
+    files = sorted([
+        f for f in os.listdir(memo_dir) if f.endswith(".md")
+    ])
+
+    today_file = f"{date_str}.md"
+    previous_files = [f for f in files if f != today_file]
+
+    if not previous_files:
+        return ""
+
+    latest = previous_files[-1]
+    with open(os.path.join(memo_dir, latest), "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def search(query: str, previous_content: str = "") -> str:
+    previous_instruction = ""
+    if previous_content:
+        previous_instruction = (
+            f"\n\n以下は前回収集済みの情報です。この内容と重複するニュースや話題は除外し、"
+            f"新しい情報・視点のみを提供してください。\n\n"
+            f"---\n{previous_content[:3000]}\n---"
+        )
+
     payload = json.dumps({
         "model": "sonar",
         "messages": [
@@ -44,17 +72,18 @@ def search(query: str) -> str:
                 "role": "system",
                 "content": (
                     "あなたは情報収集アシスタントです。"
-                    "月収1万円を目指して個人でモバイル（iOS・Android）/Chromeアプリを開発しているインディー開発者向けに、"
+                    "月収1万円を目指して個人でiOS/Chromeアプリを開発しているインディー開発者向けに、"
                     "実践的で示唆に富む情報を日本語でまとめてください。"
                     "・箇条書きで5点\n"
-                    "・各項目は4～5文で、具体的な数字や事例を必ず含めること\n"
+                    "・各項目は3〜4文で、具体的な数字や事例を必ず含めること\n"
                     "・「なぜ今重要か」を各項目に一言添えること\n"
                     "・最後に『💡 今週試せるアクション』を1つ、具体的に\n"
+                    + previous_instruction
                 )
             },
             {"role": "user", "content": query}
         ],
-        "max_tokens": 1150,
+        "max_tokens": 1000,
     }).encode()
 
     req = urllib.request.Request(
@@ -69,23 +98,23 @@ def search(query: str) -> str:
         data = json.loads(res.read())
 
     content = data["choices"][0]["message"]["content"]
-    
-    # citationsを取り出してURLリストを追記
+
     citations = data.get("citations", [])
     if citations:
         content += "\n\n**参考リンク**\n"
         for i, url in enumerate(citations, 1):
             content += f"- [{i}] {url}\n"
-    
+
     return content
 
 
 def main():
+    previous_content = get_previous_memo()
     sections = []
 
     for category, query in TOPICS:
         print(f"Fetching: {category}")
-        content = search(query)
+        content = search(query, previous_content)
         sections.append(f"## {category}\n\n{content}\n")
 
     memo = f"""# 📚 アイデアストック — {date_str}
