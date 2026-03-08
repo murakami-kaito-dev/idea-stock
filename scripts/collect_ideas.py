@@ -10,7 +10,6 @@ JST = timezone(timedelta(hours=9))
 now = datetime.now(JST)
 date_str = now.strftime("%Y-%m-%d")
 timestamp = now.strftime("%Y-%m-%d %H:%M JST")
-yesterday = (now - timedelta(days=1)).strftime("%Y年%m月%d日")
 
 TOPICS = [
     (
@@ -37,7 +36,7 @@ TOPICS = [
 
 
 def get_used_urls() -> str:
-    """当月・前月のメモから収集済みURLを抽出する"""
+    """全期間のメモから収集済みURLを抽出する"""
     memo_dir = "memos"
     if not os.path.exists(memo_dir):
         return ""
