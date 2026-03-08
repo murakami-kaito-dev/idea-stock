@@ -43,14 +43,10 @@ def get_used_urls() -> str:
         return ""
 
     # 当月・前月のファイル名プレフィックスを生成
-    this_month = now.strftime("%Y-%m")
-    last_month = (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
-    target_prefixes = (this_month, last_month)
-
     urls = set()
     files = [
         f for f in os.listdir(memo_dir)
-        if f.endswith(".md") and f.startswith(target_prefixes)
+        if f.endswith(".md")
         and f != f"{date_str}.md"
     ]
 
