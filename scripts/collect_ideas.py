@@ -36,34 +36,44 @@ TOPICS = [
 ]
 
 
-def get_previous_memo() -> str:
-    """直近のメモファイルを取得する"""
+def get_used_urls() -> str:
+    """当月・前月のメモから収集済みURLを抽出する"""
     memo_dir = "memos"
     if not os.path.exists(memo_dir):
         return ""
 
-    files = sorted([
-        f for f in os.listdir(memo_dir) if f.endswith(".md")
-    ])
+    # 当月・前月のファイル名プレフィックスを生成
+    this_month = now.strftime("%Y-%m")
+    last_month = (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    target_prefixes = (this_month, last_month)
 
-    today_file = f"{date_str}.md"
-    previous_files = [f for f in files if f != today_file]
+    urls = set()
+    files = [
+        f for f in os.listdir(memo_dir)
+        if f.endswith(".md") and f.startswith(target_prefixes)
+        and f != f"{date_str}.md"
+    ]
 
-    if not previous_files:
-        return ""
+    for filename in files:
+        with open(os.path.join(memo_dir, filename), "r", encoding="utf-8") as f:
+            content = f.read()
+        # 参考リンクのURLを抽出（- [1] https://... の形式）
+        for line in content.splitlines():
+            if line.strip().startswith("- [") and "https://" in line:
+                url = line.split("https://")[-1].strip()
+                urls.add("https://" + url)
 
-    latest = previous_files[-1]
-    with open(os.path.join(memo_dir, latest), "r", encoding="utf-8") as f:
-        return f.read()
+    return "\n".join(sorted(urls))
 
 
-def search(query: str, previous_content: str = "") -> str:
-    previous_instruction = ""
-    if previous_content:
-        previous_instruction = (
-            f"\n\n以下は前回収集済みの情報です。この内容と重複するニュースや話題は除外し、"
-            f"新しい情報・視点のみを提供してください。\n\n"
-            f"---\n{previous_content[:3000]}\n---"
+def search(query: str, used_urls: str = "") -> str:
+    url_instruction = ""
+    if used_urls:
+        url_instruction = (
+            "\n\n以下のURLはすでに過去に参照済みです。"
+            "これらとまったく同じURLからの情報は使わないでください。"
+            "同じドメインの別ページは使用して構いません。\n\n"
+            + used_urls
         )
 
     payload = json.dumps({
@@ -79,7 +89,7 @@ def search(query: str, previous_content: str = "") -> str:
                     "・各項目は3〜4文で、具体的な数字や事例を必ず含めること\n"
                     "・「なぜ今重要か」を各項目に一言添えること\n"
                     "・最後に『💡 今週試せるアクション』を1つ、具体的に\n"
-                    + previous_instruction
+                    + url_instruction
                 )
             },
             {"role": "user", "content": query}
@@ -110,12 +120,12 @@ def search(query: str, previous_content: str = "") -> str:
 
 
 def main():
-    previous_content = get_previous_memo()
+    used_urls = get_used_urls()  # ← 変更
     sections = []
 
     for category, query in TOPICS:
         print(f"Fetching: {category}")
-        content = search(query.format(yesterday=yesterday), previous_content)
+        content = search(query.format(yesterday=yesterday), used_urls)
         sections.append(f"## {category}\n\n{content}\n")
 
     memo = f"""# 📚 アイデアストック — {date_str}
