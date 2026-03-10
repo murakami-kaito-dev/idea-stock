@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   issues:
     types: [opened]
+  schedule:
+    - cron: '0 22 * * *'  # 毎日JST 7:00（UTC 22:00）
 
 jobs:
   collect:
