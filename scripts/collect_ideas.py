@@ -36,11 +36,11 @@ TOPICS = [
 ]
 
 
-def get_used_urls() -> str:
-    """全期間のメモから収集済みURLを抽出する"""
+def get_used_urls() -> set:
+    """全期間のメモから収集済みURLをセットで返す"""
     memo_dir = "memos"
     if not os.path.exists(memo_dir):
-        return ""
+        return set()
 
     urls = set()
     files = [
@@ -57,20 +57,18 @@ def get_used_urls() -> str:
                 url = line.split("https://")[-1].strip()
                 urls.add("https://" + url)
 
-    return "\n".join(sorted(urls))
+    return urls
 
 
-def search(query: str, used_urls: str = "") -> str:
-    already_used = set(used_urls.splitlines()) if used_urls else set()
-
+def search(query: str, already_used: set) -> str:
     url_instruction = ""
-    if used_urls:
+    if already_used:
         url_instruction = (
             "【厳守事項】以下のURLはすでに過去に取得済みです。"
             "これらのURLを情報源として使用することを固く禁じます。"
             "必ず異なるURLの情報源から回答してください。"
             "同じドメインの別ページは使用して構いません。\n\n"
-            + used_urls
+            + "\n".join(sorted(already_used))
         )
 
     messages = [
@@ -112,43 +110,28 @@ def search(query: str, used_urls: str = "") -> str:
 
     citations = data.get("citations", [])
     if citations:
-        # 除外URLのインデックスを特定
-        removed_indices = set()
-        new_citations = []
-        new_index = 1
-        index_map = {}
-
+        # 除外URLに対応する番号を本文から削除
         for i, url in enumerate(citations, 1):
             if url in already_used:
-                removed_indices.add(i)
-            else:
-                index_map[i] = new_index
-                new_citations.append(url)
-                new_index += 1
+                content = re.sub(rf'\[{i}\]', '', content)
 
-        # 本文中の除外済みURL引用番号を削除
-        for idx in removed_indices:
-            content = re.sub(rf'\[{idx}\]', '', content)
-
-        # 残った引用番号を新しい番号に振り直し
-        for old_idx, new_idx in sorted(index_map.items(), reverse=True):
-            content = re.sub(rf'\[{old_idx}\]', f'[{new_idx}]', content)
-
+        # 除外されていないURLのみ参考リンクとして表示（番号はそのまま）
+        new_citations = [(i, url) for i, url in enumerate(citations, 1) if url not in already_used]
         if new_citations:
             content += "\n\n**参考リンク**\n"
-            for i, url in enumerate(new_citations, 1):
+            for i, url in new_citations:
                 content += f"- [{i}] {url}\n"
 
     return content
 
 
 def main():
-    used_urls = get_used_urls()
+    already_used = get_used_urls()
     sections = []
 
     for category, query in TOPICS:
         print(f"Fetching: {category}")
-        content = search(query, used_urls)
+        content = search(query, already_used)
         sections.append(f"## {category}\n\n{content}\n")
 
     memo = f"""# 📚 アイデアストック — {date_str}
