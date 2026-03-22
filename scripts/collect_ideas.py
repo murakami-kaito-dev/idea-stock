@@ -60,7 +60,7 @@ def get_used_urls() -> set:
     return urls
 
 
-def search(query: str, already_used: set) -> str:
+def search(query: str, already_used: set) -> str | None:
     url_instruction = ""
     if already_used:
         url_instruction = (
@@ -70,7 +70,6 @@ def search(query: str, already_used: set) -> str:
             "同じドメインの別ページは使用して構いません。\n\n"
             + "\n".join(sorted(already_used))
         )
-
     messages = [
         {
             "role": "system",
@@ -78,16 +77,18 @@ def search(query: str, already_used: set) -> str:
                 "あなたは情報収集アシスタントです。"
                 "月収1万円を目指して個人でiOS/Chromeアプリを開発しているインディー開発者向けに、"
                 "実践的で示唆に富む情報を日本語でまとめてください。"
+                "・必ず情報源のURLを各項目に付与すること。URLが不明な情報は省略すること\n"
                 "・箇条書きで5点\n"
                 "・各項目は3〜4文で、具体的な数字や事例を必ず含めること\n"
                 "・「なぜ今重要か」を各項目に一言添えること\n"
             )
         },
-        {"role": "user", "content": query}
     ]
 
     if url_instruction:
-        messages.insert(1, {"role": "system", "content": url_instruction})
+        messages.append({"role": "user", "content": url_instruction})
+        messages.append({"role": "assistant", "content": "承知しました。指定のURLは使用しません。"})
+    messages.append({"role": "user", "content": query})
 
     payload = json.dumps({
         "model": "sonar",
@@ -107,20 +108,27 @@ def search(query: str, already_used: set) -> str:
         data = json.loads(res.read())
 
     content = data["choices"][0]["message"]["content"]
-
     citations = data.get("citations", [])
-    if citations:
-        # 除外URLに対応する番号を本文から削除
-        for i, url in enumerate(citations, 1):
-            if url in already_used:
-                content = re.sub(rf'\[{i}\]', '', content)
 
-        # 除外されていないURLのみ参考リンクとして表示（番号はそのまま）
-        new_citations = [(i, url) for i, url in enumerate(citations, 1) if url not in already_used]
-        if new_citations:
-            content += "\n\n**参考リンク**\n"
-            for i, url in new_citations:
-                content += f"- [{i}] {url}\n"
+    # citationsがない場合はNoneを返してスキップ
+    if not citations:
+        return None
+
+    # 除外URLに対応する番号を本文から削除
+    for i, url in enumerate(citations, 1):
+        if url in already_used:
+            content = re.sub(rf'\[{i}\]', '', content)
+
+    # 除外されていないURLのみ参考リンクとして表示（番号はそのまま）
+    new_citations = [(i, url) for i, url in enumerate(citations, 1) if url not in already_used]
+
+    # 除外後にcitationsが全滅した場合もスキップ
+    if not new_citations:
+        return None
+
+    content += "\n\n**参考リンク**\n"
+    for i, url in new_citations:
+        content += f"- [{i}] {url}\n"
 
     return content
 
@@ -132,6 +140,9 @@ def main():
     for category, query in TOPICS:
         print(f"Fetching: {category}")
         content = search(query, already_used)
+        if content is None:
+            print(f"  情報源なし、スキップ: {category}")
+            continue
         sections.append(f"## {category}\n\n{content}\n")
 
     memo = f"""# 📚 アイデアストック — {date_str}
