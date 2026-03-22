@@ -131,14 +131,12 @@ def search(query: str, already_used: set) -> str | None:
         num = int(match.group(1))
         if num in citation_map:
             return citation_map[num]
-        return ""  # 除外されたURLの引用は削除
- 
+        # citation_mapにない場合、元のcitationsから直接引く
+        if num <= len(citations):
+            return citations[num - 1]
+        return ""
+
     content = re.sub(r'\[(\d+)\]', replace_citation, content)
- 
-    # 参考リンク一覧も末尾に追加
-    content += "\n\n**参考リンク**\n"
-    for i, url in sorted(citation_map.items()):
-        content += f"- [{i}] {url}\n"
  
     return content
  
