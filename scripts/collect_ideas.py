@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import urllib.request
 from datetime import datetime, timezone, timedelta
@@ -60,35 +61,39 @@ def get_used_urls() -> str:
 
 
 def search(query: str, used_urls: str = "") -> str:
-    already_used = set(used_urls.splitlines()) if used_urls else set()  # ① 除外用セット
+    already_used = set(used_urls.splitlines()) if used_urls else set()
 
     url_instruction = ""
     if used_urls:
         url_instruction = (
-            "\n\n【厳守事項】以下のURLはすでに過去に取得済みです。"  # ② 指示を強化
+            "【厳守事項】以下のURLはすでに過去に取得済みです。"
             "これらのURLを情報源として使用することを固く禁じます。"
             "必ず異なるURLの情報源から回答してください。"
             "同じドメインの別ページは使用して構いません。\n\n"
             + used_urls
         )
 
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "あなたは情報収集アシスタントです。"
+                "月収1万円を目指して個人でiOS/Chromeアプリを開発しているインディー開発者向けに、"
+                "実践的で示唆に富む情報を日本語でまとめてください。"
+                "・箇条書きで5点\n"
+                "・各項目は3〜4文で、具体的な数字や事例を必ず含めること\n"
+                "・「なぜ今重要か」を各項目に一言添えること\n"
+            )
+        },
+        {"role": "user", "content": query}
+    ]
+
+    if url_instruction:
+        messages.insert(1, {"role": "system", "content": url_instruction})
+
     payload = json.dumps({
         "model": "sonar",
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "あなたは情報収集アシスタントです。"
-                    "月収1万円を目指して個人でiOS/Chromeアプリを開発しているインディー開発者向けに、"
-                    "実践的で示唆に富む情報を日本語でまとめてください。"
-                    "・箇条書きで5点\n"
-                    "・各項目は3〜4文で、具体的な数字や事例を必ず含めること\n"
-                    "・「なぜ今重要か」を各項目に一言添えること\n"
-                    + url_instruction
-                )
-            },
-            {"role": "user", "content": query}
-        ],
+        "messages": messages,
         "max_tokens": 1000,
     }).encode()
 
@@ -107,7 +112,28 @@ def search(query: str, used_urls: str = "") -> str:
 
     citations = data.get("citations", [])
     if citations:
-        new_citations = [url for url in citations if url not in already_used]  # ③ 重複URLを除外
+        # 除外URLのインデックスを特定
+        removed_indices = set()
+        new_citations = []
+        new_index = 1
+        index_map = {}
+
+        for i, url in enumerate(citations, 1):
+            if url in already_used:
+                removed_indices.add(i)
+            else:
+                index_map[i] = new_index
+                new_citations.append(url)
+                new_index += 1
+
+        # 本文中の除外済みURL引用番号を削除
+        for idx in removed_indices:
+            content = re.sub(rf'\[{idx}\]', '', content)
+
+        # 残った引用番号を新しい番号に振り直し
+        for old_idx, new_idx in sorted(index_map.items(), reverse=True):
+            content = re.sub(rf'\[{old_idx}\]', f'[{new_idx}]', content)
+
         if new_citations:
             content += "\n\n**参考リンク**\n"
             for i, url in enumerate(new_citations, 1):
