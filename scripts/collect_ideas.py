@@ -14,23 +14,23 @@ timestamp = now.strftime("%Y-%m-%d %H:%M JST")
 TOPICS = [
     (
         "📱 モバイルアプリ開発",
-        "最新のFlutter, iOS, App Store, インディー開発者に関するニュースやトレンドを教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
+        "直近2ヶ月以内のFlutter, iOS, App Store, インディー開発者に関するニュースやトレンドを教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
     ),
     (
         "🎨 UI/UX",
-        "最新のモバイル・WebアプリのUI/UXデザイン、デザインシステム、ユーザー体験に関するニュースや事例を教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
+        "直近2ヶ月以内のモバイル・WebアプリのUI/UXデザイン、デザインシステム、ユーザー体験に関するニュースや事例を教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
     ),
     (
         "📈 マーケティング",
-        "最新のアプリマーケティング、ASO、個人開発者のグロース戦略に関するニュースを教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
+        "直近2ヶ月以内のアプリマーケティング、ASO、個人開発者のグロース戦略に関するニュースを教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
     ),
     (
         "🤖 AI",
-        "最新の生成AI・LLM・個人開発者が使えるAIツールに関するニュースやリリース情報を教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
+        "直近2ヶ月以内の生成AI・LLM・個人開発者が使えるAIツールに関するニュースやリリース情報を教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
     ),
     (
         "💰 マネタイズ",
-        "最新の個人開発アプリのマネタイズ事例、サブスク設計、フリーミアム戦略、価格設定に関するニュースを教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
+        "直近2ヶ月以内の個人開発アプリのマネタイズ事例、サブスク設計、フリーミアム戦略、価格設定に関するニュースを教えてください。英語・日本語どちらの情報源でも構いません。まとめは日本語で。"
     ),
 ]
 
@@ -41,7 +41,6 @@ def get_used_urls() -> str:
     if not os.path.exists(memo_dir):
         return ""
 
-    # 当月・前月のファイル名プレフィックスを生成
     urls = set()
     files = [
         f for f in os.listdir(memo_dir)
@@ -52,7 +51,6 @@ def get_used_urls() -> str:
     for filename in files:
         with open(os.path.join(memo_dir, filename), "r", encoding="utf-8") as f:
             content = f.read()
-        # 参考リンクのURLを抽出（- [1] https://... の形式）
         for line in content.splitlines():
             if line.strip().startswith("- [") and "https://" in line:
                 url = line.split("https://")[-1].strip()
@@ -62,11 +60,14 @@ def get_used_urls() -> str:
 
 
 def search(query: str, used_urls: str = "") -> str:
+    already_used = set(used_urls.splitlines()) if used_urls else set()  # ① 除外用セット
+
     url_instruction = ""
     if used_urls:
         url_instruction = (
-            "\n\n以下のURLはすでに過去に参照済みです。"
-            "これらとまったく同じURLからの情報は使わないでください。"
+            "\n\n【厳守事項】以下のURLはすでに過去に取得済みです。"  # ② 指示を強化
+            "これらのURLを情報源として使用することを固く禁じます。"
+            "必ず異なるURLの情報源から回答してください。"
             "同じドメインの別ページは使用して構いません。\n\n"
             + used_urls
         )
@@ -83,7 +84,6 @@ def search(query: str, used_urls: str = "") -> str:
                     "・箇条書きで5点\n"
                     "・各項目は3〜4文で、具体的な数字や事例を必ず含めること\n"
                     "・「なぜ今重要か」を各項目に一言添えること\n"
-                    "・最後に『💡 今週試せるアクション』を1つ、具体的に\n"
                     + url_instruction
                 )
             },
@@ -107,15 +107,17 @@ def search(query: str, used_urls: str = "") -> str:
 
     citations = data.get("citations", [])
     if citations:
-        content += "\n\n**参考リンク**\n"
-        for i, url in enumerate(citations, 1):
-            content += f"- [{i}] {url}\n"
+        new_citations = [url for url in citations if url not in already_used]  # ③ 重複URLを除外
+        if new_citations:
+            content += "\n\n**参考リンク**\n"
+            for i, url in enumerate(new_citations, 1):
+                content += f"- [{i}] {url}\n"
 
     return content
 
 
 def main():
-    used_urls = get_used_urls()  # ← 変更
+    used_urls = get_used_urls()
     sections = []
 
     for category, query in TOPICS:
@@ -132,9 +134,6 @@ def main():
 {"---\n\n".join(sections)}
 
 ---
-
-## ✍️ 今日のアクション候補
-<!-- 上記を読んで、今日試せることを1つ書く -->
 
 """
 
