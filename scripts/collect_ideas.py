@@ -86,19 +86,35 @@ def search(query: str) -> str | None:
 
     content = re.sub(r'\[(\d+)\]', replace_citation, content)
 
+    # URLだけの行を除去（[N]置換後にURLが二重になるのを防止）
+    url_only_pattern = re.compile(r'^\s*https?://[^\s]+\s*$')
+    lines = content.split('\n')
+    cleaned_lines = [line for line in lines if not url_only_pattern.match(line)]
+    content = '\n'.join(cleaned_lines)
+
     return content
 
 
 def main():
     sections = []
+    collected = []
+    skipped = []
 
     for category, query in TOPICS:
         print(f"Fetching: {category}")
         content = search(query)
         if content is None:
-            print(f"  情報源なし、スキップ: {category}")
+            print(f"  → 情報源なし、スキップ: {category}")
+            skipped.append(category)
             continue
         sections.append(f"## {category}\n\n{content}\n")
+        collected.append(category)
+
+    # サマリーログ
+    print(f"\n===== 収集結果サマリー =====")
+    print(f"収集成功: {len(collected)}カテゴリ ({', '.join(collected)})")
+    if skipped:
+        print(f"スキップ: {len(skipped)}カテゴリ ({', '.join(skipped)})")
 
     memo = f"""# 📚 アイデアストック — {date_str}
 
