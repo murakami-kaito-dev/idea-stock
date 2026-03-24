@@ -68,19 +68,48 @@ def split_into_sections(memo: str) -> tuple[str, list[tuple[str, str]], str]:
     return header, sections, footer
 
 
+def split_into_items(body: str) -> list[str]:
+    """
+    セクション本文を個別の項目に分割する。
+    箇条書きマーカー（-、•、*、数字.）で始まる行を項目の開始とみなす。
+    マーカーが見つからない場合は空行で分割する。
+    """
+    lines = body.strip().split('\n')
+    # 箇条書きマーカーのパターン
+    bullet_pattern = re.compile(r'^\s*[-•*]\s|^\s*\d+[.)]\s')
+
+    # まず箇条書きマーカーがあるか確認
+    has_bullets = any(bullet_pattern.match(line) for line in lines if line.strip())
+
+    if has_bullets:
+        # マーカーで分割
+        items = []
+        current = []
+        for line in lines:
+            if bullet_pattern.match(line) and current:
+                items.append('\n'.join(current))
+                current = [line]
+            else:
+                current.append(line)
+        if current:
+            items.append('\n'.join(current))
+        return [item.strip() for item in items if item.strip()]
+    else:
+        # マーカーがなければ空行で分割
+        blocks = re.split(r'\n{2,}', body.strip())
+        return [b.strip() for b in blocks if b.strip()]
+
+
 def filter_items(body: str, past_urls: set) -> str:
     """
     セクション本文内の各項目を解析し、過去URLを含む項目を除去。
-    項目は空行で区切られたブロックとして扱う。
     """
-    # 空行で項目を分割（Perplexityの出力は項目間に空行が入る）
-    blocks = re.split(r'\n{2,}', body.strip())
+    blocks = split_into_items(body)
 
     kept = []
     removed_count = 0
 
     for block in blocks:
-        block = block.strip()
         if not block:
             continue
 
