@@ -129,7 +129,7 @@ def main():
 """
 
     os.makedirs("memos", exist_ok=True)
-    filepath = f"memos/{date_str}.md"
+    filepath = f"memos/{date_str}-raw.md"
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(memo)
     print(f"Saved: {filepath}")
