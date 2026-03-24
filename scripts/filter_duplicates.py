@@ -13,7 +13,8 @@ JST = timezone(timedelta(hours=9))
 date_str = datetime.now(JST).strftime("%Y-%m-%d")
 
 MEMO_DIR = "memos"
-TODAY_FILE = os.path.join(MEMO_DIR, f"{date_str}.md")
+RAW_FILE = os.path.join(MEMO_DIR, f"{date_str}-raw.md")
+FILTERED_FILE = os.path.join(MEMO_DIR, f"{date_str}.md")
 
 URL_PATTERN = re.compile(r'https?://[^\s\)\]。、，．）】」』\u3000]+')
 
@@ -27,7 +28,7 @@ def get_past_urls() -> set:
     for filename in os.listdir(MEMO_DIR):
         if not filename.endswith(".md"):
             continue
-        if filename == f"{date_str}.md":
+        if filename == f"{date_str}.md" or filename == f"{date_str}-raw.md":
             continue
         with open(os.path.join(MEMO_DIR, filename), "r", encoding="utf-8") as f:
             for match in URL_PATTERN.findall(f.read()):
@@ -102,16 +103,19 @@ def filter_items(body: str, past_urls: set) -> str:
 
 
 def main():
-    if not os.path.exists(TODAY_FILE):
-        print(f"今日のメモが見つかりません: {TODAY_FILE}")
+    if not os.path.exists(RAW_FILE):
+        print(f"今日のrawメモが見つかりません: {RAW_FILE}")
         return
 
-    with open(TODAY_FILE, "r", encoding="utf-8") as f:
+    with open(RAW_FILE, "r", encoding="utf-8") as f:
         memo = f.read()
 
     past_urls = get_past_urls()
     if not past_urls:
-        print("過去メモなし。フィルタ不要。")
+        print("過去メモなし。rawをそのままコピー。")
+        with open(FILTERED_FILE, "w", encoding="utf-8") as f:
+            f.write(memo)
+        print(f"Saved: {FILTERED_FILE}")
         return
 
     print(f"過去メモから {len(past_urls)} 件のURLを検出")
@@ -137,7 +141,7 @@ def main():
     result += "---\n\n".join(filtered_sections)
     result += footer
 
-    with open(TODAY_FILE, "w", encoding="utf-8") as f:
+    with open(FILTERED_FILE, "w", encoding="utf-8") as f:
         f.write(result)
 
     # サマリーログ
@@ -146,7 +150,7 @@ def main():
     print(f"出力カテゴリ数: {len(filtered_sections)}")
     if skipped_categories:
         print(f"全除去されたカテゴリ: {', '.join(skipped_categories)}")
-    print(f"フィルタ完了: {TODAY_FILE}")
+    print(f"フィルタ完了: {FILTERED_FILE}")
 
 
 if __name__ == "__main__":
