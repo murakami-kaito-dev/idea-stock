@@ -57,7 +57,7 @@ def search(query: str) -> str | None:
     payload = json.dumps({
         "model": "sonar",
         "messages": messages,
-        "max_tokens": 4000,
+        "max_tokens": 5000,
     }).encode()
 
     req = urllib.request.Request(
