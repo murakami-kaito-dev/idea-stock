@@ -36,40 +36,7 @@ TOPICS = [
 ]
 
 
-def get_used_urls() -> set:
-    """全期間のメモから収集済みURLをセットで返す"""
-    memo_dir = "memos"
-    if not os.path.exists(memo_dir):
-        return set()
-
-    urls = set()
-    files = [
-        f for f in os.listdir(memo_dir)
-        if f.endswith(".md")
-        and f != f"{date_str}.md"
-    ]
-
-    url_pattern = re.compile(r'https?://[^\s\)]+')
-
-    for filename in files:
-        with open(os.path.join(memo_dir, filename), "r", encoding="utf-8") as f:
-            content = f.read()
-        for match in url_pattern.findall(content):
-            urls.add(match)
-
-    return urls
-
-
-def search(query: str, already_used: set) -> str | None:
-    url_instruction = ""
-    if already_used:
-        url_instruction = (
-            "【厳守事項】以下のURLはすでに過去に取得済みです。"
-            "これらのURLを情報源として使用することを固く禁じます。"
-            "必ず異なるURLの情報源から回答してください。"
-            "同じドメインの別ページは使用して構いません。\n\n"
-            + "\n".join(sorted(already_used))
-        )
+def search(query: str) -> str | None:
     messages = [
         {
             "role": "system",
@@ -84,12 +51,8 @@ def search(query: str, already_used: set) -> str | None:
                 "・1つの項目に複数の[N]を混在させないこと。最も重要な情報源1つに絞ること\n"
             )
         },
+        {"role": "user", "content": query},
     ]
-
-    if url_instruction:
-        messages.append({"role": "user", "content": url_instruction})
-        messages.append({"role": "assistant", "content": "承知しました。指定のURLは使用しません。"})
-    messages.append({"role": "user", "content": query})
 
     payload = json.dumps({
         "model": "sonar",
@@ -111,7 +74,6 @@ def search(query: str, already_used: set) -> str | None:
     content = data["choices"][0]["message"]["content"]
     citations = data.get("citations", [])
 
-    # citationsがない場合はスキップ
     if not citations:
         return None
 
@@ -128,12 +90,11 @@ def search(query: str, already_used: set) -> str | None:
 
 
 def main():
-    already_used = get_used_urls()
     sections = []
 
     for category, query in TOPICS:
         print(f"Fetching: {category}")
-        content = search(query, already_used)
+        content = search(query)
         if content is None:
             print(f"  情報源なし、スキップ: {category}")
             continue
