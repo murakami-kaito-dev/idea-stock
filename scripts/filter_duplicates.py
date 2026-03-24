@@ -15,7 +15,7 @@ date_str = datetime.now(JST).strftime("%Y-%m-%d")
 MEMO_DIR = "memos"
 TODAY_FILE = os.path.join(MEMO_DIR, f"{date_str}.md")
 
-URL_PATTERN = re.compile(r'https?://[^\s\)\]]+')
+URL_PATTERN = re.compile(r'https?://[^\s\)\]。、，．）】」』\u3000]+')
 
 
 def get_past_urls() -> set:
