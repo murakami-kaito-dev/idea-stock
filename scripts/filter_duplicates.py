@@ -88,7 +88,9 @@ def filter_items(body: str, past_urls: set) -> str:
 
         # 過去URLと一つでも重複があれば除去
         if urls_in_block & past_urls:
+            dup_urls = urls_in_block & past_urls
             removed_count += 1
+            print(f"    除去: {list(dup_urls)[0]}")
             continue
 
         kept.append(block)
@@ -117,6 +119,8 @@ def main():
     header, sections, footer = split_into_sections(memo)
 
     filtered_sections = []
+    skipped_categories = []
+
     for heading, body in sections:
         print(f"処理中: {heading.strip()}")
         filtered_body = filter_items(body, past_urls)
@@ -125,6 +129,7 @@ def main():
         if filtered_body.strip():
             filtered_sections.append(f"{heading}\n\n{filtered_body}\n")
         else:
+            skipped_categories.append(heading.strip())
             print(f"  → 全項目が重複のためカテゴリごとスキップ")
 
     # メモを再構築
@@ -135,6 +140,12 @@ def main():
     with open(TODAY_FILE, "w", encoding="utf-8") as f:
         f.write(result)
 
+    # サマリーログ
+    print(f"\n===== フィルタ結果サマリー =====")
+    print(f"入力カテゴリ数: {len(sections)}")
+    print(f"出力カテゴリ数: {len(filtered_sections)}")
+    if skipped_categories:
+        print(f"全除去されたカテゴリ: {', '.join(skipped_categories)}")
     print(f"フィルタ完了: {TODAY_FILE}")
 
 
